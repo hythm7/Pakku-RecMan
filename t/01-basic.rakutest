@@ -1,0 +1,6 @@
+use Test;
+use Pakku::RecMan;
+
+pass "replace me";
+
+done-testing;
