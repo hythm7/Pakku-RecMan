@@ -29,9 +29,9 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   my $spec = Pakku::Spec.new: %spec;
 
-  my @candies = $!db.select: :$name;
+  my @candy = $!db.select: :$name;
 
-  unless @candies {
+  unless @candy {
 
     return Empty unless $!recman;
 
@@ -40,9 +40,11 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
     return to-json %meta;
   }
 
-  my $candy = @candies.grep( -> %candy { %candy ~~ $spec } ).reduce( &latest );
+  @candy .= grep( -> %candy { %candy ~~ $spec } );
 
-  return unless $candy;
+  return Empty unless @candy;
+
+  my $candy = @candy.reduce( &latest );
 
   my $identity = $candy<identity>;
 
