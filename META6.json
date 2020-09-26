@@ -16,7 +16,7 @@
     "Pakku::Meta:ver<pupa>:auth<github:hythm7>",
     "Pakku::RecMan::Client:ver<pupa>:auth<github:hythm7>"
   ],
-  "description" : "Pakku Recommensation Manager",
+  "description" : "Pakku Recommendation Manager",
   "license" : "Artistic-2.0",
   "name" : "Pakku::RecMan",
   "perl" : "6.d",
