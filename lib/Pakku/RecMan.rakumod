@@ -1,18 +1,23 @@
 use JSON::Fast;
+use File::Find;
+use Archive::Libarchive;
+use Archive::Libarchive::Constants;
 use Cro::HTTP::Server;
 use Cro::HTTP::Router;
 use Cro::HTTP::Log::File;
+use Badger ~%?RESOURCES<sql/recman.sql>;
 
-use Pakku::RecMan::Database;
-use Pakku::RecMan::Client;
 use Pakku::Spec;
+use Pakku::Meta;
+use Pakku::RecMan::Client;
+
 
 
 unit class Pakku::RecMan;
 
-has IO $!store;
-has Pakku::RecMan::Database $!db;
-has Pakku::RecMan::Client   $!recman;
+has IO                    $!store;
+has                       $!db;
+has Pakku::RecMan::Client $!recman;
 
 has $!host = %*ENV<PAKKU_RECMAN_HOST>;
 has $!port = %*ENV<PAKKU_RECMAN_PORT>;
@@ -29,7 +34,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   my $spec = Pakku::Spec.new: %spec;
 
-  my @candy = $!db.select: :$name;
+  my @candy = self.select: :$name;
 
   unless @candy {
 
@@ -48,7 +53,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   my $identity = $candy<identity>;
 
-  my %meta = from-json $!db.select-meta: :$identity;
+  my %meta = from-json self.select-meta: :$identity;
 
   %meta<source> = "http://$!host/archive/{%meta<source>}";
 
@@ -56,13 +61,122 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
 }
 
-method everything ( ) {
+method select ( :$name! ) {
 
-  $!db.everything.map( *.values ).flat.map( -> $json { from-json $json } )
+  select $!db, $name;
 
 }
 
-method update ( ) { $!db.update }
+method select-meta ( :$identity! ) {
+
+  #TODO: Sort version correctly
+  select-meta $!db, $identity;
+
+}
+
+method everything ( ) {
+
+  # (everything $!db).map( *.values ).flat.map( -> $json { from-json $json } )
+  everything $!db
+    ==> map( *.values )
+    ==> flat( )
+    ==> map( -> $json { from-json $json } );
+
+}
+
+method update ( ) {
+
+  #  set-journal-mode-wal $!db;
+
+  create-table-distributions $!db;
+  create-table-provides      $!db;
+  create-table-deps          $!db;
+  create-table-resources     $!db;
+  create-table-emulates      $!db;
+  create-table-supersedes    $!db;
+  create-table-superseded    $!db;
+  create-table-excludes      $!db;
+  create-table-authors       $!db;
+  create-table-tags          $!db;
+
+  for find( dir => $!store ) -> $path {
+
+    my $m = quietly try from-json extract-meta :$path;
+
+    next unless $m;
+
+    $m{ grep { not defined $m{ $_ } }, $m.keys}:delete;
+
+    $m<source> = $path.basename.Str;
+
+    my $meta = quietly try Pakku::Meta.new: meta => $m;
+
+    next unless $meta;
+
+    my $build = to-json $meta.build if $meta.build;
+
+    say $meta.identity.Str;
+
+    quietly insert-into-distributions(
+      $!db,
+      $meta.source,
+      $meta.to-json,
+      $meta.identity.Str,
+      $meta.name,
+      $meta.ver.Str,
+      $meta.auth,
+      $meta.api.Str,
+      $meta.description,
+      $meta.source-url,
+      $build,
+      $meta.builder,
+      $meta.author,
+      $meta.support<source>,
+      $meta.support<email>,
+      $meta.support<mailinglist>,
+      $meta.support<bugtracker>,
+      $meta.support<irc>,
+      $meta.support<phone>,
+      $meta.support<license>,
+      $meta.production,
+      $meta.license,
+      $meta.raku-version.Str
+    );
+
+    $meta.provides.map( { insert-into-provides $!db, $meta.identity.Str, .key, .value } ) ;
+
+    my %h = $meta.deps;
+    my @deps = %h.keys Z %h{%h.keys}.map(|*.keys) Z %h{%h.keys}.map(|*.values);
+
+    @deps.map( -> @dep {
+
+      for flat @dep[2] -> $dep is rw {
+
+        $dep = to-json $dep if $dep ~~ Hash;
+        insert-into-deps $!db, $meta.identity.Str, @dep[0], @dep[1], $dep;
+
+     }
+    });
+
+    $meta.resources.grep( *.defined ).map( -> $resource { insert-into-resources $!db, $meta.identity.Str, $resource } ) ;
+
+    $meta.emulates.grep( *.defined ).map( { insert-into-emulates $!db, $meta.identity.Str, .key, .value } ) ;
+
+    $meta.supersedes.grep( *.defined ).map( { insert-into-supersedes $!db, $meta.identity.Str, .key, .value } ) ;
+
+    $meta.superseded-by.grep( *.defined ).map( { insert-into-superseded $!db, $meta.identity.Str, .key, .value } ) ;
+
+    $meta.excludes.grep( *.defined ).map( { insert-into-excludes $!db, $meta.identity.Str, .key, .value } ) ;
+
+    $meta.authors.grep( *.defined ).map( -> $author { insert-into-authors $!db, $meta.identity.Str, $author } ) ;
+
+    $meta.tags.grep( *.defined ).map( -> $tag { insert-into-tags $!db, $meta.identity.Str, $tag } ) ;
+
+  }
+
+  # wal-checkpoint $!db;
+
+}
 
 method serve ( ) {
 
@@ -77,6 +191,8 @@ method serve ( ) {
   );
 
   $http.start;
+  #  read-uncommited $!db;
+
   say "Listening at http://$!host:$!port>";
 
   react {
@@ -119,12 +235,33 @@ sub latest ( %left, %right ) {
     !! %left; 
 }
 
-submethod BUILD ( :$db, IO :$!store!, :@cooperate ) {
+sub extract-meta ( Str() :$path! ) {
+
+	my Archive::Libarchive $a .= new: operation => LibarchiveRead, file => $path;
 
 
-  $!db     = Pakku::RecMan::Database.new: :$!store, filename => $db;
+	my @meta = < META6.json META.json META6.info META.info >;
 
-  $!recman = Pakku::RecMan::Client.new:   url => @cooperate if @cooperate;
+	my Archive::Libarchive::Entry $e .= new;
+
+	while $a.next-header($e) {
+
+	if $e.pathname.split( '/' ).skip ~~ any @meta {
+
+		return $a.read-file-content($e).decode('utf-8') if $e.size > 0;
+
+	}
+		$a.data-skip;
+
+	}
+
+	LEAVE $a.close;
+
+}
+
+submethod BUILD ( :$!db, IO :$!store!, :@cooperate ) {
+
+  $!recman = Pakku::RecMan::Client.new: url => @cooperate if @cooperate;
 
 }
 
