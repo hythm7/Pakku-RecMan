@@ -25,6 +25,8 @@ has $!port = %*ENV<PAKKU_RECMAN_PORT>;
 
 method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
+  LEAVE $!db.finish;
+
   my %spec;
 
   %spec<name>    = $name    if defined $name;
@@ -65,6 +67,7 @@ method select ( :$name! ) {
 
   select $!db, $name;
 
+
 }
 
 method select-meta ( :$identity! ) {
@@ -76,7 +79,8 @@ method select-meta ( :$identity! ) {
 
 method everything ( ) {
 
-  # (everything $!db).map( *.values ).flat.map( -> $json { from-json $json } )
+  LEAVE $!db.finish;
+
   everything $!db
     ==> map( *.values )
     ==> flat( )
@@ -86,7 +90,7 @@ method everything ( ) {
 
 method update ( ) {
 
-  #  set-journal-mode-wal $!db;
+  LEAVE $!db.finish;
 
   create-table-distributions $!db;
   create-table-provides      $!db;
@@ -174,8 +178,6 @@ method update ( ) {
 
   }
 
-  # wal-checkpoint $!db;
-
 }
 
 method serve ( ) {
@@ -191,7 +193,6 @@ method serve ( ) {
   );
 
   $http.start;
-  #  read-uncommited $!db;
 
   say "Listening at http://$!host:$!port>";
 

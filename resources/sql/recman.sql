@@ -1,12 +1,3 @@
--- sub set-journal-mode-wal( )
-PRAGMA journal_mode=WAL;
-
--- sub wal-checkpoint( )
-PRAGMA wal_checkpoint;
-
--- sub read-uncommited( )
-PRAGMA read_uncommitted = 1;
-
 -- sub create-table-distributions( )
 CREATE TABLE IF NOT EXISTS 'distributions' (
 
@@ -211,13 +202,13 @@ SELECT distributions.identity, name, ver, auth, api
   LEFT JOIN provides
   ON        provides.identity = distributions.identity
   WHERE     name = $name or unit = $name
-  GROUP BY  distributions.identity;
+  GROUP BY  distributions.identity
 
 -- sub select-meta(Str $identity! --> $)
 SELECT meta
   FROM     distributions
-  WHERE    identity = $identity;
+  WHERE    identity = $identity
 
 -- sub everything( --> @)
-SELECT meta FROM distributions;
+SELECT meta FROM distributions
 

@@ -4,16 +4,16 @@ NAME
 
 SYNOPSIS
 ========
-Parse all distributions archives in `store` directory and add them to `db`
+Parse all distributions archives in `store` directory and add them to `database`
 
 ```
-recman.raku --db=recman.sqlite --store=/path/to/distributions/archives update
+recman.raku --database=recman.sqlite --store=/path/to/distributions/archives update
 ```
 
 `serve` the disributions's `meta` and archives, ( also can cooperate with other `Pakku::RecMan`s )
 
 ```
-PAKKU_RECMAN_HOST=localhost PAKKU_RECMAN_PORT=4242 recman.raku --db=recman.sqlite --store=/store --cooperate=recman.cpan.org --cooperate=recman.pakku.org serve;
+PAKKU_RECMAN_HOST=localhost PAKKU_RECMAN_PORT=4242 recman.raku --database=recman.sqlite --store=/store --cooperate=recman.cpan.org --cooperate=recman.pakku.org serve;
 ```
 
 INSTALLATION
@@ -58,7 +58,7 @@ CREDITS
 ======
 * I'm using [crai](https://github.com/chloekek/crai/tree/master/crai) to mirror locally the archives of the distributions in `p6c` and `cpan`
 
-* `db` schema is stolen from `crai` and modified to suit `Pakku`'s needs 
+* `database` schema is stolen from `crai` and modified to suit `Pakku`'s needs 
 
 AUTHOR
 ======
