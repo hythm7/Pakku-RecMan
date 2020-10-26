@@ -12,9 +12,9 @@
     "LibCurl",
     "Archive::Libarchive",
     "Cro::HTTP",
-    "Pakku::Spec:ver<pupa>:auth<github:hythm7>",
-    "Pakku::Meta:ver<pupa>:auth<github:hythm7>",
-    "Pakku::RecMan::Client:ver<pupa>:auth<github:hythm7>"
+    "Pakku::Spec",
+    "Pakku::Meta",
+    "Pakku::RecMan::Client"
   ],
   "description" : "Pakku Recommendation Manager",
   "license" : "Artistic-2.0",
@@ -39,5 +39,5 @@
     "meta"
   ],
   "test-depends" : [ ],
-  "version" : "pupa"
+  "version" : "0.0.1"
 }
