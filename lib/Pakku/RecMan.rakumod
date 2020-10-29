@@ -116,7 +116,7 @@ method update ( ) {
 
     $m<source> = $path.basename.Str;
 
-    my $meta = quietly try Pakku::Meta.new: meta => $m;
+    my $meta = quietly try Pakku::Meta.new: $m;
 
     next unless $meta;
 
