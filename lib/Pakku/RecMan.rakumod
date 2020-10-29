@@ -40,21 +40,24 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   unless @candy {
 
-    return Empty unless $!recman;
+    return not-found unless $!recman;
 
     my %meta = $!recman.recommend: :$spec;
+
+    return not-found unless %meta;
 
     return to-json %meta;
   }
 
   @candy .= grep( -> %candy { %candy ~~ $spec } );
 
-  return Empty unless @candy;
+  return not-found unless @candy;
 
   my $candy = @candy.reduce( &latest );
 
   my $identity = $candy<identity>;
 
+  #TODO: source should be in database with host and port
   my %meta = from-json self.select-meta: :$identity;
 
   %meta<source> = "http://$!host/archive/{%meta<source>}";
