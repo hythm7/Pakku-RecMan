@@ -5,7 +5,7 @@ on:
     branches:
       - '*'
     tags-ignore:
-      - '*'
+      - 'main'
   pull_request:
 
 jobs:
