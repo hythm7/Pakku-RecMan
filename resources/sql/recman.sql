@@ -1,7 +1,7 @@
 -- sub create-table-distributions( )
 CREATE TABLE IF NOT EXISTS 'distributions' (
 
-  'source'              TEXT     NOT NULL,
+  'recman-src'          TEXT     NOT NULL,
   'meta'                TEXT     NOT NULL,
   'identity'            TEXT     NOT NULL,
   'name'                TEXT     NOT NULL,
@@ -132,16 +132,16 @@ CREATE TABLE IF NOT EXISTS 'tags' (
   FOREIGN KEY ( identity ) REFERENCES distributions ( identity )
 )
 
--- sub insert-into-distributions(Str $source, Str $meta, Str $identity, Str $name, Str $ver, Str $auth, Str $api, Str $description, Str $source-url, Str $build, Str $builder, Str $author, Str $support-source, Str $support-email, Str $support-mailinglist, Str $support-bugtracker, Str $support-irc, Str $support-phone, Str $support-license, Int $production, Str $license, Str $raku --> +)
+-- sub insert-into-distributions(Str $recman-src, Str $meta, Str $identity, Str $name, Str $ver, Str $auth, Str $api, Str $description, Str $source-url, Str $build, Str $builder, Str $author, Str $support-source, Str $support-email, Str $support-mailinglist, Str $support-bugtracker, Str $support-irc, Str $support-phone, Str $support-license, Int $production, Str $license, Str $raku --> +)
 INSERT INTO 'distributions' (
-  'source', 'meta', 'identity', 'name', 'ver', 'auth', 'api',
+  'recman-src', 'meta', 'identity', 'name', 'ver', 'auth', 'api',
   'description', 'source-url', 'build', 'builder', 'author', 'support-source',
   'support-email', 'support-mailinglist', 'support-bugtracker',
   'support-irc', 'support-phone', 'support-license', 'production',
   'license', 'raku'
   )
   VALUES (
-    $source, $meta, $identity, $name, $ver, $auth,
+    $recman-src, $meta, $identity, $name, $ver, $auth,
     $api, $description, $source-url, $build, $builder, $author,
     $support-source, $support-email, $support-mailinglist,
     $support-bugtracker, $support-irc, $support-phone,

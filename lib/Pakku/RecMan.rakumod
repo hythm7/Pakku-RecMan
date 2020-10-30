@@ -60,7 +60,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
   #TODO: source should be in database with host and port
   my %meta = from-json self.select-meta: :$identity;
 
-  %meta<source> = "http://$!host/archive/{%meta<source>}";
+  %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
 
   to-json %meta;
 
@@ -114,7 +114,7 @@ method update ( ) {
 
     $m{ grep { not defined $m{ $_ } }, $m.keys}:delete;
 
-    $m<source> = $path.basename.Str;
+    $m<recman-src> = $path.basename.Str;
 
     my $meta = quietly try Pakku::Meta.new: $m;
 
@@ -126,7 +126,7 @@ method update ( ) {
 
     quietly insert-into-distributions(
       $!db,
-      $meta.source,
+      $meta.recman-src,
       $meta.to-json,
       $meta.identity.Str,
       $meta.name,
