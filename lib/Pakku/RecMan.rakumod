@@ -43,11 +43,11 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count 
 
     return not-found unless $!recman;
 
-    my %meta = $!recman.recommend: :$spec :$count;
+    my $meta = $!recman.recommend: :$spec :$count;
 
-    return not-found unless %meta;
+    return not-found unless $meta;
 
-    return %meta;
+    return $meta;
 
   }
 
@@ -269,7 +269,7 @@ sub reduce-latest ( %left, %right ) {
 
 sub sort-latest ( %left, %right ) {
 
-  ( %left<api>.Version cmp %right<api>.Version ) cmp ( %left<ver>.Version cmp %right<ver>.Version );
+  ( %right<api>.Version cmp %left<api>.Version ) or ( %right<ver>.Version cmp %left<ver>.Version );
 
 }
 
