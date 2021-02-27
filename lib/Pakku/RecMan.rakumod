@@ -12,7 +12,6 @@ use Pakku::Meta;
 use Pakku::RecMan::Client;
 
 
-
 unit class Pakku::RecMan;
 
 has IO                    $!store;
@@ -23,16 +22,17 @@ has $!host = %*ENV<PAKKU_RECMAN_HOST>;
 has $!port = %*ENV<PAKKU_RECMAN_PORT>;
 
 
-method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
+method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count ) {
 
   LEAVE $!db.finish;
 
   my %spec;
 
-  %spec<name>    = $name    if defined $name;
-  %spec<ver>     = $ver     if defined $ver;
-  %spec<auth>    = $auth    if defined $auth;
-  %spec<api>     = $api     if defined $api;
+  %spec<name> = $name;
+  # workaround untill cro-http#96
+  %spec<ver>  = $ver.trans: ' ' => '+' if defined $ver;
+  %spec<auth> = $auth    if defined $auth;
+  %spec<api>  = $api     if defined $api;
 
   my $spec = Pakku::Spec.new: %spec;
 
@@ -42,43 +42,53 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
     return not-found unless $!recman;
 
-    my %meta = $!recman.recommend: :$spec;
+    my %meta = $!recman.recommend: :$spec :$count;
 
     return not-found unless %meta;
 
-    return to-json %meta;
+    return %meta;
+
   }
 
   @candy .= grep( -> %candy { %candy ~~ $spec } );
 
   return not-found unless @candy;
 
-  my $candy = @candy.reduce( &latest );
+  if not $count {
 
-  my $identity = $candy<identity>;
+    my %candy = @candy.reduce( &reduce-latest );
 
-  #TODO: source should be in database with host and port
-  my %meta = from-json self.select-meta: :$identity;
+    my %meta = from-json self.select-meta: identity => %candy<identity>;
 
-  %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
+    %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
 
-  to-json %meta;
+    %meta;
+  }
+
+  else {
+
+    @candy .= sort( &sort-latest );
+
+    @candy .= head( $count );
+
+    @candy.map( -> %candy {
+
+        my %meta = from-json self.select-meta: identity => %candy<identity>;
+
+        %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
+
+        %meta;
+
+    } );
+
+  }
 
 }
 
-method select ( :$name! ) {
 
-  select $!db, $name;
+method select ( :$name! ) { select $!db, $name }
 
-
-}
-
-method select-meta ( :$identity! ) {
-
-  #TODO: Sort version correctly
-  select-meta $!db, $identity;
-
-}
+method select-meta ( :$identity! ) { select-meta $!db, $identity }
 
 method everything ( ) {
 
@@ -89,6 +99,70 @@ method everything ( ) {
     ==> flat( )
     ==> map( -> $json { from-json $json } );
 
+}
+
+method !routes ( ) {
+
+  route {
+    
+    get -> 'recommend', Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count {
+
+      content 'applicationtext/json', to-json self.recommend: :$name :$ver :$auth :$api, :$count;
+
+    }
+
+    get -> 'archive', $path {
+
+      static $!store, $path
+
+    }
+
+    get -> 'meta', '42' {
+
+      content 'applicationtext/json', to-json self.everything;
+
+    }
+
+    get -> '42' {
+
+      content 'applicationtext/json', to-json self.everything;
+
+    }
+
+
+    get -> {
+
+      content 'text/html', "<h1> Pakku::RecMan </h1>";
+
+    }
+  }
+
+}
+
+
+method serve ( ) {
+
+  my Cro::Service $http = Cro::HTTP::Server.new(
+    http => <1.1>,
+    host => $!host || die("Missing PAKKU_RECMAN_HOST in environment"),
+    port => $!port || die("Missing PAKKU_RECMAN_PORT in environment"),
+    application => self!routes,
+    after => [
+        Cro::HTTP::Log::File.new(logs => $*OUT, errors => $*ERR)
+    ]
+  );
+
+  $http.start;
+
+  say "Listening at http://$!host:$!port>";
+
+  react {
+    whenever signal(SIGINT) {
+        say "Shutting down...";
+        $http.stop;
+        done;
+    }
+  }
 }
 
 method update ( ) {
@@ -183,61 +257,21 @@ method update ( ) {
 
 }
 
-method serve ( ) {
 
-  my Cro::Service $http = Cro::HTTP::Server.new(
-    http => <1.1>,
-    host => $!host || die("Missing PAKKU_RECMAN_HOST in environment"),
-    port => $!port || die("Missing PAKKU_RECMAN_PORT in environment"),
-    application => self!routes,
-    after => [
-        Cro::HTTP::Log::File.new(logs => $*OUT, errors => $*ERR)
-    ]
-  );
+sub reduce-latest ( %left, %right ) {
 
-  $http.start;
-
-  say "Listening at http://$!host:$!port>";
-
-  react {
-    whenever signal(SIGINT) {
-        say "Shutting down...";
-        $http.stop;
-        done;
-    }
-  }
-}
-
-method !routes ( ) {
-
-  route {
-    
-    get -> 'meta', Str:D :$name!, Str :$ver, Str :$auth, Str :$api {
-      content 'applicationtext/json', self.recommend: :$name :$ver :$auth :$api;
-    }
-
-    get -> 'archive', $path {
-      static $!store, $path
-    }
-
-    get -> 'meta', '42' {
-      content 'applicationtext/json', to-json self.everything;
-    }
-
-    get -> {
-      content 'text/html', "<h1> Pakku::RecMan </h1>";
-    }
-  }
+  %left<api>.Version == %right<api>.Version
+    ?? %left<ver>.Version ≥ %right<ver>.Version ?? return %left !! return %right
+    !! %left<api>.Version ≥ %right<api>.Version  ?? return %left !! return %right;
 
 }
 
+sub sort-latest ( %left, %right ) {
 
-sub latest ( %left, %right ) {
+  ( %left<api>.Version cmp %right<api>.Version ) cmp ( %left<ver>.Version cmp %right<ver>.Version );
 
-  %left<ver>.Version ≤ %right<ver>.Version
-    ?? %right
-    !! %left; 
 }
+
 
 sub extract-meta ( Str() :$path! ) {
 
