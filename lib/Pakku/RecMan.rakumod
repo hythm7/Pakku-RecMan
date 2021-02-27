@@ -29,10 +29,11 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count 
   my %spec;
 
   %spec<name> = $name;
-  # workaround untill cro-http#96
-  %spec<ver>  = $ver.trans: ' ' => '+' if defined $ver;
-  %spec<auth> = $auth    if defined $auth;
-  %spec<api>  = $api     if defined $api;
+  # workaround untill cro-http#96 0.8.4 is addressed
+  #%spec<ver>  = $ver.trans: ' ' => '+' if defined $ver;
+  %spec<ver>  = $ver  if defined $ver;
+  %spec<auth> = $auth if defined $auth;
+  %spec<api>  = $api  if defined $api;
 
   my $spec = Pakku::Spec.new: %spec;
 
