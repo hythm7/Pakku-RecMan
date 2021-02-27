@@ -72,15 +72,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count 
 
     @candy .= head( $count );
 
-    @candy.map( -> %candy {
-
-        my %meta = from-json self.select-meta: identity => %candy<identity>;
-
-        %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
-
-        %meta;
-
-    } );
+    @candy.map( { from-json self.select-meta: identity => .<identity> } ); 
 
   }
 
