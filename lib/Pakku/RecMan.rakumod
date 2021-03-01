@@ -22,7 +22,7 @@ has $!host = %*ENV<PAKKU_RECMAN_HOST>;
 has $!port = %*ENV<PAKKU_RECMAN_PORT>;
 
 
-method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count ) {
+method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   LEAVE $!db.finish;
 
@@ -43,7 +43,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count 
 
     return not-found unless $!recman;
 
-    my $meta = $!recman.recommend: :$spec :$count;
+    my $meta = $!recman.recommend: :$spec;
 
     return not-found unless $meta;
 
@@ -55,39 +55,67 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count 
 
   return not-found unless @candy;
 
-  if not $count {
+  my %candy = @candy.reduce( &reduce-latest );
 
-    my %candy = @candy.reduce( &reduce-latest );
+  self.select-meta: identity => %candy<identity>;
 
-    my %meta = from-json self.select-meta: identity => %candy<identity>;
+}
 
-    %meta<recman-src> = "http://$!host/archive/{%meta<recman-src>}";
+multi method search ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ,Str :$count ) {
 
-    %meta;
+  LEAVE $!db.finish;
+
+  my %spec;
+
+  %spec<name> = $name;
+  # workaround untill cro-http#96 0.8.4 is addressed
+  #%spec<ver>  = $ver.trans: ' ' => '+' if defined $ver;
+  %spec<ver>  = $ver  if defined $ver;
+  %spec<auth> = $auth if defined $auth;
+  %spec<api>  = $api  if defined $api;
+
+  my $spec = Pakku::Spec.new: %spec;
+
+  my @candy = self.select: :$name;
+
+  unless @candy {
+
+    return not-found unless $!recman;
+
+    my $meta = $!recman.search: :$spec :$count;
+
+    return not-found unless $meta;
+
+    return $meta;
+
   }
 
-  else {
+  @candy .= grep( -> %candy { %candy ~~ $spec } );
 
-    @candy .= sort( &sort-latest );
+  return not-found unless @candy;
 
-    @candy .= head( $count );
+  @candy .= sort( &sort-latest );
 
-    @candy.map( { from-json self.select-meta: identity => .<identity> } ); 
+  @candy .= head( $count );
 
-  }
+  to-json @candy.map( { from-json self.select-meta: identity => .<identity> } ); 
 
 }
 
 
 method select ( :$name! ) { select $!db, $name }
 
-method select-meta ( :$identity! ) { select-meta $!db, $identity }
+method select-meta ( :$identity! ) {
+
+  .subst: q["recman-src":"], qq["recman-src":"http://$!host/archive/] with select-meta $!db, $identity
+
+}
 
 method everything ( ) {
 
   LEAVE $!db.finish;
 
-  everything $!db
+  to-json everything $!db
     ==> map( *.values )
     ==> flat( )
     ==> map( -> $json { from-json $json } );
@@ -100,7 +128,7 @@ method !routes ( ) {
     
     get -> 'recommend', Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count {
 
-      content 'applicationtext/json', to-json self.recommend: :$name :$ver :$auth :$api, :$count;
+      content 'applicationtext/json', self.recommend: :$count :$name :$ver :$auth :$api;
 
     }
 
@@ -109,16 +137,22 @@ method !routes ( ) {
       static $!store, $path
 
     }
+    
+    get -> 'search', Str:D :$name!, Str :$ver, Str :$auth, Str :$api, Str :$count {
+
+      content 'applicationtext/json', self.search: :$name :$ver :$auth :$api, :$count;
+
+    }
 
     get -> 'meta', '42' {
 
-      content 'applicationtext/json', to-json self.everything;
+      content 'applicationtext/json', self.everything;
 
     }
 
     get -> '42' {
 
-      content 'applicationtext/json', to-json self.everything;
+      content 'applicationtext/json', self.everything;
 
     }
 
