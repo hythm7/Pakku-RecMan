@@ -115,10 +115,11 @@ method everything ( ) {
 
   LEAVE $!db.finish;
 
-  to-json everything $!db
+  everything $!db
     ==> map( *.values )
     ==> flat( )
-    ==> map( -> $json { from-json $json } );
+    ==> map( -> $json { from-json $json } )
+    ==> to-json( );
 
 }
 
