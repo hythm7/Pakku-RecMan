@@ -288,15 +288,16 @@ method update ( ) {
 
 sub reduce-latest ( %left, %right ) {
 
-  %left<api>.Version == %right<api>.Version
-    ?? %left<ver>.Version ≥ %right<ver>.Version ?? return %left !! return %right
-    !! %left<api>.Version ≥ %right<api>.Version  ?? return %left !! return %right;
+  return %left if Version.new( %left<api> ) > Version.new( %right<api> );
+  return %left if Version.new( %left<ver> ) > Version.new( %right<ver> );
+  return %right;
 
 }
 
 sub sort-latest ( %left, %right ) {
 
-  ( %right<api>.Version cmp %left<api>.Version ) or ( %right<ver>.Version cmp %left<ver>.Version );
+  ( Version.new( %right<api> ) cmp Version.new( %left<api> ) ) or
+  ( Version.new( %right<ver> ) cmp Version.new( %left<ver> ) );
 
 }
 
