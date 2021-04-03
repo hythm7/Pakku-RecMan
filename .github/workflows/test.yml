@@ -27,4 +27,4 @@ jobs:
       - name: Install Pakku
         run: /tmp/Pakku/tools/install-pakku.raku --dest=/tmp/pakku
       - name: Install Module
-        run: /tmp/pakku/bin/pakku verbose trace add exclude 'sqlite:from<native>' .
+        run: /tmp/pakku/bin/pakku verbose debug add exclude 'sqlite:from<native>' .
