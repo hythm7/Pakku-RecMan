@@ -204,6 +204,14 @@ SELECT distributions.identity, name, ver, auth, api
   WHERE     name = $name or unit = $name
   GROUP BY  distributions.identity
 
+-- sub search(Str $name! --> @)
+SELECT distributions.identity, name, ver, auth, api
+  FROM      distributions
+  LEFT JOIN provides
+  ON        provides.identity = distributions.identity
+  WHERE     name = $name COLLATE NOCASE or unit = $name COLLATE NOCASE
+  GROUP BY  distributions.identity
+
 -- sub select-meta(Str $identity! --> $)
 SELECT meta
   FROM     distributions

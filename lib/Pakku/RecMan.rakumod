@@ -37,7 +37,7 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   my $spec = Pakku::Spec.new: %spec;
 
-  my @candy = self.select: :$name;
+  my @candy = self!select: :$name;
 
   unless @candy {
 
@@ -57,11 +57,11 @@ method recommend ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ) {
 
   my %candy = @candy.reduce( &reduce-latest );
 
-  self.select-meta: identity => %candy<identity>;
+  self!select-meta: identity => %candy<identity>;
 
 }
 
-multi method search ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ,Str :$count ) {
+method search ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ,Str :$count ) {
 
   LEAVE $!db.finish;
 
@@ -76,7 +76,7 @@ multi method search ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ,Str :$cou
 
   my $spec = Pakku::Spec.new: %spec;
 
-  my @candy = self.select: :$name;
+  my @candy = self!search: :$name;
 
   unless @candy {
 
@@ -98,20 +98,21 @@ multi method search ( Str:D :$name!, Str :$ver, Str :$auth, Str :$api ,Str :$cou
 
   @candy .= head( $count );
 
-  to-json @candy.map( { from-json self.select-meta: identity => .<identity> } ); 
+  to-json @candy.map( { from-json self!select-meta: identity => .<identity> } ); 
 
 }
 
 
-method select ( :$name! ) { select $!db, $name }
+method !select ( :$name! ) { select $!db, $name }
+method !search ( :$name! ) { search $!db, $name }
 
-method select-meta ( :$identity! ) {
+method !select-meta ( :$identity! ) {
 
   .subst: q["recman-src":"], qq["recman-src":"http://$!host/archive/] with select-meta $!db, $identity
 
 }
 
-method everything ( ) {
+method !everything ( ) {
 
   LEAVE $!db.finish;
 
@@ -147,13 +148,13 @@ method !routes ( ) {
 
     get -> 'meta', '42' {
 
-      content 'applicationtext/json', self.everything;
+      content 'applicationtext/json', self!everything;
 
     }
 
     get -> '42' {
 
-      content 'applicationtext/json', self.everything;
+      content 'applicationtext/json', self!everything;
 
     }
 
